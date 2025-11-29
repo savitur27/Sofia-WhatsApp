@@ -115,10 +115,10 @@ Cuando comiences a usar el chat aceptas los términos y condiciones.
   subscription: {
     messages: {
       expired: 
-        "You're out of wishes. Click here to upgrade and receive unlimited wishes every day 🙏 https://www.askjinni.ai/plantdoc-premium"
+        "Haz llegado a tu límite de mensajes gratuitos. Da click aquí y contrátame para tener mensajes ilimitados 🙏 https://www.askjinni.ai/plantdoc-premium"
     },
     limits: {
-      freeMessages: 4  // Messages allowed before requiring subscription
+      freeMessages: 5  // Messages allowed before requiring subscription
     }
   },
 
@@ -127,9 +127,9 @@ Cuando comiences a usar el chat aceptas los términos y condiciones.
   ==============================*/
   errors: {
     general: 
-      "I apologize, but I'm having trouble processing your message right now. Please try again in a moment. 🙏",
+      "Lo lamento pero he tenido problemas procesando tu mensaje. Por favor inténtalo en un momento. 🙏",
     unsupportedType: 
-      "I'm sorry, I can only process text, audio, and image messages at the moment. 🙏"
+      "Lo siento. De momento solo puedo procesar texto, imágenes y audio. 🙏"
   },
 
   /*=============================
