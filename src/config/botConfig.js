@@ -72,13 +72,13 @@ Eres experta en:
           `Please analyze this image and its caption: "${caption}" in {context}.`,
         withoutCaption: 
           "Please analyze this image in {context}.",
-        defaultContext: "no specific context"  // Bot's context setting
+        defaultContext: "asistente de marketing"  // Bot's context setting
       },
 
       // Audio-related messages
       audio: {
         transcriptionError: 
-          "Sorry, I had trouble understanding your voice message. Could you please try sending it again or type your message?"
+          "Lo siento, no he entendido el mensaje de voz. ¿Puedes enviarlo nuevamente por favor?"
       }
     },
 
