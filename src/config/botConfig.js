@@ -115,7 +115,7 @@ Cuando comiences a usar el chat aceptas los términos y condiciones.
   subscription: {
     messages: {
       expired: 
-        "Haz llegado a tu límite de mensajes gratuitos. Da click aquí y contrátame para tener mensajes ilimitados 🙏 https://www.askjinni.ai/plantdoc-premium"
+        "Haz llegado a tu límite de mensajes gratuitos. Da click aquí y contrátame para tener mensajes ilimitados 🙏 https://negociosdigitales-onl.systeme.io/contratarasofia"
     },
     limits: {
       freeMessages: 5  // Messages allowed before requiring subscription
