@@ -210,6 +210,7 @@ async function checkCustomerSubscriptionStatus(customerId, querySource) {
 async function debugStripeCustomer(phoneNumber) {
   try {
     const formattedPhoneNumber = phoneNumber.startsWith('+') ? phoneNumber : '+' + phoneNumber;
+    const withoutPlus = formattedPhoneNumber.replace(/\+/g, '');
     
     logger.info(`Debugging Stripe customer for phone: ${formattedPhoneNumber}`);
     
@@ -308,12 +309,12 @@ async function debugStripeCustomer(phoneNumber) {
       
       // Search across all customers for partial matches
       logger.info(`Searching across all customers for phone number matches...`);
-      const allCustomers = await stripe.customers.list({
+      const allCustomersExpanded = await stripe.customers.list({
         limit: 100,
         expand: ['data.subscriptions']
       });
       
-      const matches = allCustomers.data.filter(c => {
+      const matches = allCustomersExpanded.data.filter(c => {
         const customerPhone = c.phone || '';
         const metadata = c.metadata || {};
         return customerPhone.includes(withoutPlus) || 
@@ -445,81 +446,80 @@ async function handleStripeWebhook(event) {
     
     let customerId = null;
     
-    // Extract customer ID based on event type
-if (event.type === 'customer.created') {
-  customerId = event.data.object.id;
-  
-  // ⬇️ NUEVO: Normalizar teléfono al crear customer
-  const customerData = event.data.object;
-  if (customerData.phone) {
-    const normalizedPhone = normalizePhoneNumber(customerData.phone);
-    logger.info(`📱 Normalizando teléfono de nuevo customer:`);
-    logger.info(`   Original: ${customerData.phone}`);
-    logger.info(`   Normalizado: ${normalizedPhone}`);
-    
-    // Actualizar el customer con el teléfono normalizado
-    try {
-      await stripe.customers.update(customerId, {
-        phone: normalizedPhone
-      });
-      logger.info(`✅ Teléfono actualizado para customer ${customerId}`);
-    } catch (updateError) {
-      logger.error(`❌ Error actualizando teléfono: ${updateError.message}`);
-    }
-  }
-  
-} else if (event.type === 'payment_method.attached') {
-  customerId = event.data.object.customer;
-  
-  // ⬇️ NUEVO: Verificar y normalizar teléfono cuando se adjunta método de pago
-  try {
-    const customer = await stripe.customers.retrieve(customerId);
-    if (customer && customer.phone) {
-      const normalizedPhone = normalizePhoneNumber(customer.phone);
+    // Extract customer ID and normalize phone based on event type
+    if (event.type === 'customer.created') {
+      customerId = event.data.object.id;
       
-      // Solo actualizar si el formato cambió
-      if (normalizedPhone !== customer.phone) {
-        logger.info(`📱 Normalizando teléfono al adjuntar método de pago:`);
-        logger.info(`   Original: ${customer.phone}`);
+      // Normalizar teléfono al crear customer
+      const customerData = event.data.object;
+      if (customerData.phone) {
+        const normalizedPhone = normalizePhoneNumber(customerData.phone);
+        logger.info(`📱 Normalizando teléfono de nuevo customer:`);
+        logger.info(`   Original: ${customerData.phone}`);
         logger.info(`   Normalizado: ${normalizedPhone}`);
         
-        await stripe.customers.update(customerId, {
-          phone: normalizedPhone
-        });
-        logger.info(`✅ Teléfono actualizado para customer ${customerId}`);
+        // Actualizar el customer con el teléfono normalizado
+        try {
+          await stripe.customers.update(customerId, {
+            phone: normalizedPhone
+          });
+          logger.info(`✅ Teléfono actualizado para customer ${customerId}`);
+        } catch (updateError) {
+          logger.error(`❌ Error actualizando teléfono: ${updateError.message}`);
+        }
+      }
+      
+    } else if (event.type === 'payment_method.attached') {
+      customerId = event.data.object.customer;
+      
+      // Verificar y normalizar teléfono cuando se adjunta método de pago
+      try {
+        const customer = await stripe.customers.retrieve(customerId);
+        if (customer && customer.phone) {
+          const normalizedPhone = normalizePhoneNumber(customer.phone);
+          
+          // Solo actualizar si el formato cambió
+          if (normalizedPhone !== customer.phone) {
+            logger.info(`📱 Normalizando teléfono al adjuntar método de pago:`);
+            logger.info(`   Original: ${customer.phone}`);
+            logger.info(`   Normalizado: ${normalizedPhone}`);
+            
+            await stripe.customers.update(customerId, {
+              phone: normalizedPhone
+            });
+            logger.info(`✅ Teléfono actualizado para customer ${customerId}`);
+          }
+        }
+      } catch (retrieveError) {
+        logger.error(`❌ Error recuperando customer: ${retrieveError.message}`);
+      }
+      
+    } else if (event.type === 'checkout.session.completed') {
+      // Manejar checkout completado
+      const session = event.data.object;
+      customerId = session.customer;
+      
+      // Capturar el teléfono del checkout
+      const checkoutPhone = session.customer_details?.phone;
+      
+      if (checkoutPhone && customerId) {
+        const normalizedPhone = normalizePhoneNumber(checkoutPhone);
+        
+        logger.info(`📱 Checkout completado - Normalizando teléfono:`);
+        logger.info(`   Customer ID: ${customerId}`);
+        logger.info(`   Original: ${checkoutPhone}`);
+        logger.info(`   Normalizado: ${normalizedPhone}`);
+        
+        try {
+          await stripe.customers.update(customerId, {
+            phone: normalizedPhone
+          });
+          logger.info(`✅ Teléfono actualizado para customer ${customerId} desde checkout`);
+        } catch (updateError) {
+          logger.error(`❌ Error actualizando teléfono desde checkout: ${updateError.message}`);
+        }
       }
     }
-  } catch (retrieveError) {
-    logger.error(`❌ Error recuperando customer: ${retrieveError.message}`);
-  }
-}
-
-} else if (event.type === 'checkout.session.completed') {
-  // ⬇️ NUEVO: Manejar checkout completado
-  const session = event.data.object;
-  customerId = session.customer;
-  
-  // Capturar el teléfono del checkout
-  const checkoutPhone = session.customer_details?.phone;
-  
-  if (checkoutPhone && customerId) {
-    const normalizedPhone = normalizePhoneNumber(checkoutPhone);
-    
-    logger.info(`📱 Checkout completado - Normalizando teléfono:`);
-    logger.info(`   Customer ID: ${customerId}`);
-    logger.info(`   Original: ${checkoutPhone}`);
-    logger.info(`   Normalizado: ${normalizedPhone}`);
-    
-    try {
-      await stripe.customers.update(customerId, {
-        phone: normalizedPhone
-      });
-      logger.info(`✅ Teléfono actualizado para customer ${customerId} desde checkout`);
-    } catch (updateError) {
-      logger.error(`❌ Error actualizando teléfono desde checkout: ${updateError.message}`);
-    }
-  }
-}
     
     if (!customerId) {
       logger.warn(`Could not extract customer ID from event ${event.type}`);
