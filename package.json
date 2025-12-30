@@ -4,10 +4,12 @@
   "description": "WhatsApp AI Bot with Christian guidance",
   "main": "server.js",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.45.2",
     "axios": "^1.7.7",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "form-data": "^4.0.5",
     "openai": "^4.57.0",
     "stripe": "^16.8.0",
     "whatsapp-cloud-api": "^0.3.1",
@@ -20,7 +22,12 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "keywords": ["whatsapp", "ai", "christian", "bot"],
+  "keywords": [
+    "whatsapp",
+    "ai",
+    "christian",
+    "bot"
+  ],
   "author": "",
   "license": "ISC"
 }

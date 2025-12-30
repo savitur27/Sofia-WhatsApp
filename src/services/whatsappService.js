@@ -57,6 +57,86 @@ const whatsapp = {
         timestamp: Date.now()
       };
     }
+  },
+
+  sendImage: async (to, imageBuffer, mimeType = 'image/png', caption = '') => {
+    try {
+      const messageId = `${to}-image-${Date.now()}`;
+      
+      if (sentMessages.has(messageId)) {
+        logger.info(`Skipping duplicate outgoing image: ${messageId}`);
+        return null;
+      }
+
+      logger.info(`Sending image to ${to}, size: ${imageBuffer.length} bytes`);
+
+      // Primero, subir la imagen a WhatsApp
+      const FormData = require('form-data');
+      const form = new FormData();
+      form.append('messaging_product', 'whatsapp');
+      form.append('file', imageBuffer, {
+        filename: 'image.png',
+        contentType: mimeType
+      });
+
+      const uploadResponse = await axios.post(
+        `${botConfig.whatsapp.endpoints.mediaUrl}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/media`,
+        form,
+        {
+          headers: {
+            ...form.getHeaders(),
+            'Authorization': `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`
+          }
+        }
+      );
+
+      const mediaId = uploadResponse.data.id;
+      logger.info(`Image uploaded successfully, media ID: ${mediaId}`);
+
+      // Ahora enviar el mensaje con la imagen
+      const messagePayload = {
+        messaging_product: "whatsapp",
+        to: to,
+        type: "image",
+        image: {
+          id: mediaId
+        }
+      };
+
+      // Agregar caption si existe
+      if (caption) {
+        messagePayload.image.caption = caption;
+      }
+
+      const response = await axios.post(
+        `${botConfig.whatsapp.endpoints.mediaUrl}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+        messagePayload,
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      sentMessages.set(messageId, Date.now());
+      logger.info(`Image message sent successfully to ${to}`);
+
+      return {
+        status: 'success',
+        messageId: response.data?.messages?.[0]?.id,
+        mediaId: mediaId,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      logger.error('Error sending WhatsApp image:', error);
+      logger.error('Error details:', error.response?.data || error.message);
+      return {
+        status: 'error',
+        error: error.message,
+        timestamp: Date.now()
+      };
+    }
   }
 };
 

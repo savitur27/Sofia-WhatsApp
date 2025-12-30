@@ -1,5 +1,5 @@
 const whatsapp = require('../services/whatsappService');
-const { generateResponse } = require('../ai/model');
+const { generateResponse, generateImage, isImageGenerationRequest } = require('../ai/model');
 const databaseService = require('../services/databaseService');
 const paymentService = require('../services/paymentService');
 const logger = require('../utils/logger');
@@ -92,6 +92,49 @@ async function handleMessage(req) {
       logger.info(`Unsupported message type: ${messageType}`);
       await whatsapp.sendText(from, botConfig.errors.unsupportedType);
       return;
+    }
+
+    // Detectar si el usuario quiere generar una imagen
+    if (messageType === 'text' && isImageGenerationRequest(messageContent)) {
+      logger.info(`Image generation request detected from ${from}`);
+      
+      try {
+        // Verificar suscripción primero
+        const user = await databaseService.findOrCreateUser(from);
+        const subscriptionStatus = await paymentService.checkStripeSubscription(from);
+        
+        if (!subscriptionStatus.isActive && user.message_count >= botConfig.subscription.limits.freeMessages) {
+          logger.info(`User ${from} has no active subscription and exceeded free messages`);
+          await whatsapp.sendText(from, botConfig.subscription.messages.expired);
+          return;
+        }
+        
+        // Incrementar contador de mensajes
+        await databaseService.incrementMessageCount(from);
+        
+        // Enviar mensaje de "estoy trabajando en ello"
+        await whatsapp.sendText(from, "Perfecto, estoy creando tu diseño. Dame un momento... ✨");
+        
+        // Generar la imagen
+        logger.info(`Generating image with prompt: ${messageContent}`);
+        const imageResult = await generateImage(messageContent);
+        
+        // Enviar la imagen por WhatsApp
+        const imageBuffer = Buffer.from(imageResult.base64, 'base64');
+        await whatsapp.sendImage(from, imageBuffer, 'image/png', 'Aquí está tu diseño 🎨');
+        
+        // Guardar en el historial
+        await databaseService.saveMessage(from, messageContent, 'user');
+        await databaseService.saveMessage(from, '[Imagen generada]', 'assistant');
+        
+        logger.info(`Image successfully generated and sent to ${from}`);
+        return { status: 'success', type: 'image_generated' };
+        
+      } catch (imageError) {
+        logger.error(`Error generating image: ${imageError.message}`);
+        await whatsapp.sendText(from, "Lo siento, tuve un problema generando la imagen. ¿Puedes intentar con una descripción diferente?");
+        return { status: 'error', error: imageError.message };
+      }
     }
 
     // Pass all handlers to the queue service
