@@ -17,11 +17,14 @@ class GeminiService {
 
   // Chat de texto normal
   async chat(messages, systemPrompt) {
-    try {
-      const chat = this.chatModel.startChat({
-        history: this.convertToGeminiFormat(messages),
-        systemInstruction: systemPrompt
-      });
+  try {
+    const chat = this.chatModel.startChat({
+      history: this.convertToGeminiFormat(messages),
+      systemInstruction: {
+        role: "user",
+        parts: [{ text: systemPrompt }]
+      }
+    });
 
       const lastMessage = messages[messages.length - 1].content;
       const result = await chat.sendMessage(lastMessage);
