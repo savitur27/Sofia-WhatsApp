@@ -4,49 +4,41 @@ class GeminiService {
   constructor() {
     this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
     
-    // Modelo para chat de texto
     this.chatModel = this.genAI.getGenerativeModel({ 
       model: "gemini-2.0-flash-exp"
     });
     
-    // Modelo para generar imágenes  
     this.imageModel = this.genAI.getGenerativeModel({ 
       model: "gemini-2.0-flash-exp"
     });
   }
 
-  // Chat de texto normal
   async chat(messages, systemPrompt) {
     try {
-      // Convertir mensajes al formato correcto de Gemini
-      const history = [];
+      // Construir el prompt completo con el contexto
+      let fullPrompt = systemPrompt + "\n\n";
       
-      for (let i = 0; i < messages.length - 1; i++) {
-        const msg = messages[i];
-        if (msg.role !== 'system') {
-          history.push({
-            role: msg.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: msg.content }]
-          });
+      // Agregar el historial de conversación
+      for (const msg of messages) {
+        if (msg.role === 'user') {
+          fullPrompt += `Usuario: ${msg.content}\n`;
+        } else if (msg.role === 'assistant') {
+          fullPrompt += `Sofia: ${msg.content}\n`;
         }
       }
-
-      const chat = this.chatModel.startChat({
-        history: history,
-        systemInstruction: systemPrompt
-      });
-
-      const lastMessage = messages[messages.length - 1].content;
-      const result = await chat.sendMessage(lastMessage);
       
+      fullPrompt += "\nResponde como Sofia:";
+      
+      // Generar respuesta
+      const result = await this.chatModel.generateContent(fullPrompt);
       return result.response.text();
+      
     } catch (error) {
       console.error('Error en Gemini chat:', error);
       throw error;
     }
   }
 
-  // Generar imágenes para marketing
   async generateImage(prompt) {
     try {
       const enhancedPrompt = `Crea una imagen profesional de marketing para redes sociales.
@@ -61,7 +53,6 @@ Requisitos:
 Solicitud del usuario: ${prompt}`;
 
       const result = await this.imageModel.generateContent(enhancedPrompt);
-      
       const response = await result.response;
       const imageData = response.candidates[0].content.parts[0].inlineData;
       
@@ -72,7 +63,6 @@ Solicitud del usuario: ${prompt}`;
     }
   }
 
-  // Analizar imágenes que envía el usuario
   async analyzeImage(imageBase64, prompt) {
     try {
       const result = await this.chatModel.generateContent([
@@ -92,7 +82,6 @@ Solicitud del usuario: ${prompt}`;
     }
   }
 
-  // Transcribir audio de voz
   async transcribeAudio(audioBase64, mimeType = "audio/ogg") {
     try {
       const result = await this.chatModel.generateContent([
