@@ -9,7 +9,7 @@ class GeminiService {
       model: "gemini-2.0-flash-exp"
     });
     
-    // Modelo para generar imágenes
+    // Modelo para generar imágenes  
     this.imageModel = this.genAI.getGenerativeModel({ 
       model: "gemini-2.0-flash-exp"
     });
@@ -17,14 +17,24 @@ class GeminiService {
 
   // Chat de texto normal
   async chat(messages, systemPrompt) {
-  try {
-    const chat = this.chatModel.startChat({
-      history: this.convertToGeminiFormat(messages),
-      systemInstruction: {
-        role: "user",
-        parts: [{ text: systemPrompt }]
+    try {
+      // Convertir mensajes al formato correcto de Gemini
+      const history = [];
+      
+      for (let i = 0; i < messages.length - 1; i++) {
+        const msg = messages[i];
+        if (msg.role !== 'system') {
+          history.push({
+            role: msg.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: msg.content }]
+          });
+        }
       }
-    });
+
+      const chat = this.chatModel.startChat({
+        history: history,
+        systemInstruction: systemPrompt
+      });
 
       const lastMessage = messages[messages.length - 1].content;
       const result = await chat.sendMessage(lastMessage);
@@ -44,9 +54,9 @@ class GeminiService {
 Requisitos:
 - Debe incluir texto legible y claro
 - Colores vibrantes y llamativos
-- Diseño profesional
+- Diseno profesional
 - Optimizada para Instagram/Facebook
-- Resolución alta
+- Resolucion alta
 
 Solicitud del usuario: ${prompt}`;
 
@@ -92,7 +102,7 @@ Solicitud del usuario: ${prompt}`;
             mimeType: mimeType
           }
         },
-        { text: "Transcribe este audio a texto en español. Solo devuelve la transcripción, sin comentarios adicionales." }
+        { text: "Transcribe este audio a texto en espanol. Solo devuelve la transcripcion, sin comentarios adicionales." }
       ]);
 
       return result.response.text();
@@ -100,16 +110,6 @@ Solicitud del usuario: ${prompt}`;
       console.error('Error transcribiendo audio:', error);
       throw error;
     }
-  }
-
-  // Convertir formato de mensajes de OpenAI a Gemini
-  convertToGeminiFormat(messages) {
-    return messages
-      .filter(msg => msg.role !== 'system') // Gemini maneja system diferente
-      .map(msg => ({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }]
-      }));
   }
 }
 
