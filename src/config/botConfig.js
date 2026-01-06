@@ -174,7 +174,7 @@ Cuando comiences a usar el chat aceptas los términos y condiciones.
     webhooks: {
       removeBillingAddress: {
         enabled: process.env.STRIPE_REMOVE_BILLING_ADDRESS === 'true',
-        events: ['customer.created', 'payment_method.attached'],
+        events: ['customer.created', 'payment_method.attached', 'checkout.session.completed'],
         secret: process.env.STRIPE_WEBHOOK_SECRET || ''
       }
     }
