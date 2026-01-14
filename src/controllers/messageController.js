@@ -69,25 +69,52 @@ async function handleMessage(req) {
       messageForAI = [{ type: "text", text: messageContent }];
       logger.info(`Transcribed audio message: ${messageContent}`);
     } else if (messageType === 'image') {
-      const imageUrl = await downloadImageFromWhatsApp(message.image.id);
-      const caption = message.image.caption || '';
-      messageContent = caption ? `Image with caption: ${caption}` : "Image sent by user";
+  try {
+    const imageDataUrl = await downloadImageFromWhatsApp(message.image.id);
+    const caption = message.image.caption || '';
+    
+    // Extraer el base64 puro (sin el prefijo data:image/jpeg;base64,)
+    const base64Data = imageDataUrl.split(',')[1];
+    
+    logger.info(`Processing image with caption: ${caption}`);
+    
+    // Si tiene caption, analizar la imagen con el contexto del caption
+    if (caption) {
+      messageContent = `Imagen con descripcion: ${caption}`;
       
-      const promptTemplate = caption 
-        ? botConfig.ai.prompts.image.withCaption(caption)
-        : botConfig.ai.prompts.image.withoutCaption;
-        
-      messageForAI = [
-        { 
-          type: "text", 
-          text: promptTemplate.replace('{context}', botConfig.ai.prompts.defaultContext)
-        },
-        {
-          type: "image_url",
-          image_url: { url: imageUrl }
-        }
-      ];
-      logger.info(`Prepared image message with caption: ${caption}`);
+      // Usar analyzeImage de Gemini
+      const analysis = await require('../ai/model').analyzeImage(
+        base64Data,
+        `Analiza esta imagen en el contexto de marketing. El usuario dice: "${caption}". Da sugerencias de como usar esta imagen en redes sociales.`
+      );
+      
+      await whatsapp.sendText(from, analysis);
+      await databaseService.saveMessage(from, messageContent, 'user');
+      await databaseService.saveMessage(from, analysis, 'assistant');
+      
+      return { status: 'success', type: 'image_analyzed' };
+      
+    } else {
+      // Sin caption, solo analizar la imagen
+      messageContent = "Imagen enviada por el usuario";
+      
+      const analysis = await require('../ai/model').analyzeImage(
+        base64Data,
+        `Analiza esta imagen desde una perspectiva de marketing. Que tipo de producto o servicio se muestra? Como se podria usar en redes sociales? Da sugerencias especificas.`
+      );
+      
+      await whatsapp.sendText(from, analysis);
+      await databaseService.saveMessage(from, messageContent, 'user');
+      await databaseService.saveMessage(from, analysis, 'assistant');
+      
+      return { status: 'success', type: 'image_analyzed' };
+    }
+    
+  } catch (imageError) {
+    logger.error(`Error processing image: ${imageError.message}`);
+    await whatsapp.sendText(from, "Lo siento, tuve un problema procesando la imagen. Puedes intentar enviarla de nuevo?");
+    return { status: 'error', error: imageError.message };
+  }
     } else {
       logger.info(`Unsupported message type: ${messageType}`);
       await whatsapp.sendText(from, botConfig.errors.unsupportedType);
