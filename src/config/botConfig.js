@@ -99,7 +99,7 @@ Antes de comenzar esto es lo que debes saber:
 Cuando comiences a usar el chat aceptas los términos y condiciones.
 
 ¿Cómo puedo ayudarte hoy?`,
-    enabled: true
+    enabled: false
   },
 
   /*=============================
