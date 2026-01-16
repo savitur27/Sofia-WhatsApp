@@ -1,8 +1,11 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const ScreenshotService = require('./screenshotService');
+const logger = require('../utils/logger');
 
 class GeminiService {
   constructor() {
     this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
+    this.screenshotService = new ScreenshotService();
     
     this.chatModel = this.genAI.getGenerativeModel({ 
       model: "gemini-2.0-flash-exp"
@@ -39,26 +42,44 @@ class GeminiService {
     }
   }
 
-  async generateImage(prompt) {
+ async generateImage(prompt) {
     try {
-      const enhancedPrompt = `Crea una imagen profesional de marketing para redes sociales.
-      
-Requisitos:
-- Debe incluir texto legible y claro
-- Colores vibrantes y llamativos
-- Diseno profesional
-- Optimizada para Instagram/Facebook
-- Resolucion alta
+      logger.info('Generando diseño HTML con Gemini');
 
-Solicitud del usuario: ${prompt}`;
+      const designPrompt = `Genera codigo HTML completo para un diseño de marketing para redes sociales.
 
-      const result = await this.imageModel.generateContent(enhancedPrompt);
-      const response = await result.response;
-      const imageData = response.candidates[0].content.parts[0].inlineData;
-      
+REQUISITOS TECNICOS:
+- Dimensiones: 1080px x 1080px (cuadrado para Instagram)
+- Debe ser UN SOLO archivo HTML auto-contenido
+- Usa estilos inline o etiqueta <style> interna
+- NO uses enlaces externos ni CDN
+- NO uses imagenes externas
+- Colores vibrantes y modernos
+- Tipografia clara y legible
+- Diseño profesional y atractivo
+
+CONTENIDO:
+${prompt}
+
+Genera SOLO el codigo HTML completo, sin explicaciones ni markdown. Empieza directamente con <!DOCTYPE html>`;
+
+      const result = await this.chatModel.generateContent(designPrompt);
+      let htmlCode = result.response.text();
+
+      // Limpiar el código (remover markdown si Gemini lo agrega)
+      htmlCode = htmlCode.replace(/```html/g, '').replace(/```/g, '').trim();
+
+      logger.info('HTML generado, convirtiendo a imagen...');
+
+      // Convertir HTML a imagen usando ApiFlash
+      const imageData = await this.screenshotService.htmlToImage(htmlCode);
+
+      logger.info('Imagen generada exitosamente');
+
       return imageData;
+
     } catch (error) {
-      console.error('Error generando imagen:', error);
+      logger.error('Error generando imagen:', error);
       throw error;
     }
   }
